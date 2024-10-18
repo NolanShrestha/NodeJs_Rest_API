@@ -170,60 +170,6 @@ exports.sendMoney = async (req, res) => {
   }
 };
 
-exports.sendMoney = async (req, res) => {
-  const { senderEmail, recipientEmail, amount } = req.body;
-  try {
-    if (amount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
-
-    const sender = await User.findOne({ where: { email: senderEmail } });
-    const recipient = await User.findOne({ where: { email: recipientEmail } });
-
-    if (!sender || !recipient) {
-      return res.status(404).json({ error: 'User not found!' });
-    }
-
-    if (sender.balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    sender.balance -= amount;
-    await sender.save();
-
-    recipient.balance += amount;
-    await recipient.save();
-
-    const payment = await Payment.create({
-      amount: amount,
-      senderId: sender.id,
-      receiverId: recipient.id
-    });
-
-    res.status(200).json({
-      message: `Successfully sent ${amount} to ${recipientEmail}`,
-      transaction: {
-        paymentId: payment.id,
-        amount: payment.amount,
-        date: payment.date,
-        senderEmail: senderEmail,
-        recipientEmail: recipientEmail
-      },
-      sender: {
-        email: senderEmail,
-        balance: sender.balance
-      },
-      recipient: {
-        email: recipientEmail,
-        balance: recipient.balance
-      }
-    });
-
-  } catch (error) {
-    console.error('Error transferring money:', error);
-    res.status(500).json({ error: 'Failed to send money' });
-  }
-};
 
 
 
