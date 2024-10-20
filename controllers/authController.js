@@ -1,6 +1,5 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const sequelize = require('sequelize');
 const User = require('../models/user');
 const Payment = require('../models/payment');
 
@@ -108,41 +107,36 @@ exports.update = async (req, res) => {
   }
 };
 
+
 exports.sendMoney = async (req, res) => {
   const { senderEmail, recipientEmail, amount } = req.body;
-  const transaction = await sequelize.transaction();
-
   try {
     if (amount <= 0) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    const sender = await User.findOne({ where: { email: senderEmail }, transaction });
-    const recipient = await User.findOne({ where: { email: recipientEmail }, transaction });
+    const sender = await User.findOne({ where: { email: senderEmail } });
+    const recipient = await User.findOne({ where: { email: recipientEmail } });
 
     if (!sender || !recipient) {
-      await transaction.rollback();
       return res.status(404).json({ error: 'User not found!' });
     }
 
     if (sender.balance < amount) {
-      await transaction.rollback();
       return res.status(400).json({ error: 'Insufficient balance' });
     }
 
     sender.balance -= amount;
-    await sender.save({ transaction });
+    await sender.save();
 
     recipient.balance += amount;
-    await recipient.save({ transaction });
+    await recipient.save();
 
     const payment = await Payment.create({
       amount: amount,
       senderId: sender.id,
       receiverId: recipient.id
-    }, { transaction });
-
-    await transaction.commit();
+    });
 
     res.status(200).json({
       message: `Successfully sent ${amount} to ${recipientEmail}`,
@@ -164,7 +158,6 @@ exports.sendMoney = async (req, res) => {
     });
 
   } catch (error) {
-    await transaction.rollback();
     console.error('Error transferring money:', error);
     res.status(500).json({ error: 'Failed to send money' });
   }
